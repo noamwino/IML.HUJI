@@ -51,9 +51,8 @@ class UnivariateGaussian:
         Sets `self.mu_`, `self.var_` attributes according to calculated estimation (where
         estimator is either biased or unbiased). Then sets `self.fitted_` attribute to `True`
         """
-        m = len(X)
         self.mu_ = X.mean()
-        self.var_ = (1 / (m - 1)) * ((X - self.mu_) ** 2).sum()
+        self.var_ = X.var(ddof=1) if not self.biased_ else X.var()
 
         self.fitted_ = True
         return self
@@ -100,11 +99,9 @@ class UnivariateGaussian:
         log_likelihood: float
             log-likelihood calculated
         """
-        sum_samples = ((X - mu) ** 2).sum()
-        m = len(sum_samples)
-        likelihood = (1 / ((2 * np.pi * sigma)**(m/2))) * np.exp((-1 / (2 * sigma)) * sum_samples)
 
-        return np.log(likelihood)
+        sum_samples = np.apply_along_axis(lambda xi: xi - mu, 1, X).sum()
+        return -0.5 * len(X) * np.log(2 * np.pi * sigma) - ((1 / (2 * sigma)) * sum_samples)
 
 
 class MultivariateGaussian:
@@ -150,8 +147,8 @@ class MultivariateGaussian:
         Sets `self.mu_`, `self.cov_` attributes according to calculated estimation.
         Then sets `self.fitted_` attribute to `True`
         """
-        raise NotImplementedError()
-
+        self.mu_ = X.mean(axis=0)
+        self.cov_ = np.cov(X, rowvar=False)
         self.fitted_ = True
         return self
 
@@ -175,7 +172,12 @@ class MultivariateGaussian:
         """
         if not self.fitted_:
             raise ValueError("Estimator must first be fitted before calling `pdf` function")
-        raise NotImplementedError()
+
+        sigma = np.cov(X)
+        d = sigma.shape[0]
+        X_minus_mu = X - self.mu_
+        inside_exp = -0.5 * ((X_minus_mu).transpose() @ inv(sigma) @ (X_minus_mu))
+        return (1 / np.sqrt((2 * np.pi)**d * det(sigma))) * np.exp(inside_exp)
 
     @staticmethod
     def log_likelihood(mu: np.ndarray, cov: np.ndarray, X: np.ndarray) -> float:
@@ -196,4 +198,14 @@ class MultivariateGaussian:
         log_likelihood: float
             log-likelihood calculated over all input data and under given parameters of Gaussian
         """
-        raise NotImplementedError()
+        m, d = X.shape
+        log_det_cov = slogdet(cov)[1]
+        log_2pi = np.log(2 * np.pi)
+        X_minus_mu = X - mu
+        inv_cov = inv(cov)
+
+        def inside_sum(xi_minus_mu):
+            return xi_minus_mu @ inv_cov @ xi_minus_mu
+
+        return -0.5 * m * (d * log_2pi + log_det_cov) - 0.5 * np.apply_along_axis(inside_sum, 1,
+                                                                                  X_minus_mu).sum()
