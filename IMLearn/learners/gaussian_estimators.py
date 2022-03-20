@@ -99,9 +99,7 @@ class UnivariateGaussian:
         log_likelihood: float
             log-likelihood calculated
         """
-
-        sum_samples = np.apply_along_axis(lambda xi: xi - mu, 1, X).sum()
-        return -0.5 * len(X) * np.log(2 * np.pi * sigma) - ((1 / (2 * sigma)) * sum_samples)
+        return -0.5 * len(X) * np.log(2 * np.pi * sigma) - ((1 / (2 * sigma)) * ((X - mu)**2).sum())
 
 
 class MultivariateGaussian:
