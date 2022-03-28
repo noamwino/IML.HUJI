@@ -2,10 +2,7 @@ from __future__ import annotations
 from typing import NoReturn
 from IMLearn.base import BaseEstimator
 import numpy as np
-<<<<<<< HEAD
 from sklearn.linear_model import LogisticRegression
-=======
->>>>>>> origin/main
 
 
 class AgodaCancellationEstimator(BaseEstimator):
@@ -26,12 +23,10 @@ class AgodaCancellationEstimator(BaseEstimator):
 
         """
         super().__init__()
-<<<<<<< HEAD
         self.coef_ = None
         self.intercept_ = None
+        self.logistic_regression_obj = LogisticRegression(solver='liblinear', random_state=0)
         self.fitted = False
-=======
->>>>>>> origin/main
 
     def _fit(self, X: np.ndarray, y: np.ndarray) -> NoReturn:
         """
@@ -49,19 +44,16 @@ class AgodaCancellationEstimator(BaseEstimator):
         -----
 
         """
-<<<<<<< HEAD
-        model = LogisticRegression(solver='liblinear', random_state=0).fit(X, y)
 
-        self.coef_ = model.coef_
-        self.intercept_ = model.intercept_
+        self.model = self.logistic_regression_obj.fit(X, y)
+
+        self.coef_ = self.model.coef_
+        self.intercept_ = self.model.intercept_
 
         print(self.coef_)
         print(self.intercept_)
 
         self.fitted_ = True
-=======
-        pass
->>>>>>> origin/main
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -77,7 +69,9 @@ class AgodaCancellationEstimator(BaseEstimator):
         responses : ndarray of shape (n_samples, )
             Predicted responses of given samples
         """
-        return np.zeros(X.shape[0])
+        # todo raise error if self.fitted is false?
+
+        return self.logistic_regression_obj.predict(X)
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
@@ -96,4 +90,5 @@ class AgodaCancellationEstimator(BaseEstimator):
         loss : float
             Performance under loss function
         """
+        # todo implement?
         pass
