@@ -2,7 +2,10 @@ from __future__ import annotations
 from typing import NoReturn
 from IMLearn.base import BaseEstimator
 import numpy as np
+<<<<<<< HEAD
 from sklearn.linear_model import LogisticRegression
+=======
+>>>>>>> origin/main
 
 
 class AgodaCancellationEstimator(BaseEstimator):
@@ -23,9 +26,12 @@ class AgodaCancellationEstimator(BaseEstimator):
 
         """
         super().__init__()
+<<<<<<< HEAD
         self.coef_ = None
         self.intercept_ = None
         self.fitted = False
+=======
+>>>>>>> origin/main
 
     def _fit(self, X: np.ndarray, y: np.ndarray) -> NoReturn:
         """
@@ -43,6 +49,7 @@ class AgodaCancellationEstimator(BaseEstimator):
         -----
 
         """
+<<<<<<< HEAD
         model = LogisticRegression(solver='liblinear', random_state=0).fit(X, y)
 
         self.coef_ = model.coef_
@@ -52,6 +59,9 @@ class AgodaCancellationEstimator(BaseEstimator):
         print(self.intercept_)
 
         self.fitted_ = True
+=======
+        pass
+>>>>>>> origin/main
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """

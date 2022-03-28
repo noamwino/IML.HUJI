@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 
 
+<<<<<<< HEAD
 ID_COLS = ['h_booking_id', 'hotel_id', 'hotel_country_code', 'h_customer_id']
 
 DATETIME_COLS = ['booking_datetime', 'checkin_date', 'checkout_date', 'hotel_live_date']
@@ -27,6 +28,8 @@ BOOLEAN_COLS = ['is_user_logged_in', 'is_first_booking']
 LABEL_COL = 'cancellation_datetime'
 
 
+=======
+>>>>>>> origin/main
 def load_data(filename: str):
     """
     Load Agoda booking cancellation dataset
@@ -42,6 +45,7 @@ def load_data(filename: str):
     2) Tuple of pandas.DataFrame and Series
     3) Tuple of ndarray of shape (n_samples, n_features) and ndarray of shape (n_samples,)
     """
+<<<<<<< HEAD
     full_data = pd.read_csv(filename).drop_duplicates()
     parsed_data = parse_data(full_data)
 
@@ -96,10 +100,45 @@ def parse_data(full_data):
     print(data.columns)
     print(data.head())
     return data
+=======
+    # TODO - replace below code with any desired preprocessing
+    full_data = pd.read_csv(filename).dropna().drop_duplicates()
+    features = full_data[["h_booking_id",
+                          "hotel_id",
+                          "accommadation_type_name",
+                          "hotel_star_rating",
+                          "customer_nationality"]]
+    labels = full_data["cancellation_datetime"]
+
+    return features, labels
+
+
+def evaluate_and_export(estimator: BaseEstimator, X: np.ndarray, filename: str):
+    """
+    Export to specified file the prediction results of given estimator on given testset.
+
+    File saved is in csv format with a single column named 'predicted_values' and n_samples rows containing
+    predicted values.
+
+    Parameters
+    ----------
+    estimator: BaseEstimator or any object implementing predict() method as in BaseEstimator (for example sklearn)
+        Fitted estimator to use for prediction
+
+    X: ndarray of shape (n_samples, n_features)
+        Test design matrix to predict its responses
+
+    filename:
+        path to store file at
+
+    """
+    pd.DataFrame(estimator.predict(X), columns=["predicted_values"]).to_csv(filename, index=False)
+>>>>>>> origin/main
 
 
 if __name__ == '__main__':
     np.random.seed(0)
+<<<<<<< HEAD
     # Load data
     df, cancellation_labels = load_data("../datasets/agoda_cancellation_train.csv")
 
@@ -117,3 +156,15 @@ if __name__ == '__main__':
     # evaluate_and_export(estimator, test_X, "id1_id2_id3.csv")
 
     print("DONE")
+=======
+
+    # Load data
+    df, cancellation_labels = load_data("../datasets/agoda_cancellation_train.csv")
+    train_X, train_y, test_X, test_y = split_train_test(df, cancellation_labels)
+
+    # Fit model over data
+    estimator = AgodaCancellationEstimator().fit(train_X, train_y)
+
+    # Store model predictions over test set
+    evaluate_and_export(estimator, test_X, "id1_id2_id3.csv")
+>>>>>>> origin/main
