@@ -25,7 +25,7 @@ class AgodaCancellationEstimator(BaseEstimator):
         super().__init__()
         self.coef_ = None
         self.intercept_ = None
-        self.logistic_regression_obj = LogisticRegression(solver='liblinear', random_state=0)
+        self.logistic_regression_obj = LogisticRegression(solver='liblinear', max_iter=500)
         self.fitted = False
 
     def _fit(self, X: np.ndarray, y: np.ndarray) -> NoReturn:
@@ -90,5 +90,4 @@ class AgodaCancellationEstimator(BaseEstimator):
         loss : float
             Performance under loss function
         """
-        # todo implement?
         pass

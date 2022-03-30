@@ -2,7 +2,9 @@ from challenge.agoda_cancellation_estimator import AgodaCancellationEstimator
 from IMLearn.utils import split_train_test
 
 from sklearn import model_selection
+from sklearn.metrics import confusion_matrix, roc_curve, auc, roc_auc_score
 
+import re
 import numpy as np
 import pandas as pd
 
@@ -11,14 +13,14 @@ ID_COLS = ['h_booking_id', 'hotel_id', 'hotel_country_code', 'h_customer_id']
 
 DATETIME_COLS = ['booking_datetime', 'checkin_date', 'checkout_date', 'hotel_live_date']
 
-CODES_COLS = ['origin_country_code', 'hotel_area_code', 'hotel_brand_code', 'hotel_chain_code',
-              'hotel_city_code']
+CODES_COLS = ['origin_country_code', 'hotel_area_code', 'hotel_city_code']
+
+# (dropped) 'hotel_brand_code', 'hotel_chain_code' (have ~43K nulls!)
+
 
 CATEGORICAL_COLS = ['accommadation_type_name', 'charge_option', 'customer_nationality',
-                    'guest_nationality_country_name' , 'language', 'original_payment_method',
+                    'guest_nationality_country_name', 'language', 'original_payment_method',
                     'original_payment_type', 'original_payment_currency']
-
-# 'cancellation_policy_code' !!
 
 NUMERICAL_COLS = ['hotel_star_rating', 'no_of_adults',  'no_of_children', 'no_of_extra_bed', 'no_of_room',
                   'original_selling_amount']
@@ -27,9 +29,63 @@ SHOULD_BE_BOOLEAN_COLS = ['guest_is_not_the_customer', 'request_nonesmoke', 'req
                           'request_highfloor', 'request_largebed', 'request_twinbeds', 'request_airport',
                           'request_earlycheckin']
 
+# The following columns have 25040 nulls:
+# request_nonesmoke, request_latecheckin, request_highfloor, request_largebed, request_twinbeds, request_airport, request_earlycheckin
+# maybe remove them - or fill in nan with 0
+
 BOOLEAN_COLS = ['is_user_logged_in', 'is_first_booking']
 
 LABEL_COL = 'cancellation_datetime'
+
+
+NO_SHOW_PATTERN = '_(\d+)(N|P)'
+POLICY_PATTERN = '(\d+)D(\d+)(N|P)'
+
+
+def parse_cancellation_policy_no_show(data):
+    for i, row in data.iterrows():
+        policy = row["cancellation_policy_code"]
+        n_nights = row["n_nights"]
+
+        no_show = re.findall(NO_SHOW_PATTERN, policy)
+        if no_show:
+            if no_show[0][1] == "N":
+                percent = int(no_show[0][0]) / n_nights * 100
+            else:
+                percent = int(no_show[0][0])
+
+        else:
+            worse_policy_without_no_show = re.findall(POLICY_PATTERN, policy)[-1]
+
+            if worse_policy_without_no_show[-1] == "N":
+                percent = int(worse_policy_without_no_show[1]) / n_nights * 100
+            else:
+                percent = int(worse_policy_without_no_show[1])
+
+        data.loc[i, "no_show_percentage"] = percent
+    return data
+
+
+def parse_cancellation_policy(data):
+    for i, row in data.iterrows():
+        policy = row["cancellation_policy_code"]
+        n_nights = row["n_nights"]
+
+        worse_policy = re.findall(POLICY_PATTERN, policy)[-1]
+        try:
+            if worse_policy[2] == "N":
+                percent = int(worse_policy[1]) / n_nights * 100
+            else:
+                percent = int(worse_policy[1])
+        except:
+            print(worse_policy, policy)
+            exit()
+
+        days = int(worse_policy[0])
+        data.loc[i, "charge_percentage"] = percent
+        data.loc[i, "charge_days"] = days
+        data.loc[i, "charge_days_times_percentage"] = days * percent
+    return data
 
 
 def load_data(filename: str):
@@ -55,7 +111,7 @@ def load_data(filename: str):
     return features, labels
 
 # todo uncomment and use!
-def evaluate_and_export(estimator: AgodaCancellationEstimator, X: np.ndarray, filename: str):
+def evaluate_and_export(estimator: AgodaCancellationEstimator, X: np.ndarray, y_true, filename: str):
     """
     Export to specified file the prediction results of given estimator on given testset.
 
@@ -75,31 +131,65 @@ def evaluate_and_export(estimator: AgodaCancellationEstimator, X: np.ndarray, fi
 
     """
     print("Predictions!")
-    print(pd.DataFrame(estimator.predict(X)))
+    predictions = pd.DataFrame(estimator.predict(X))
+    conf_matrix = confusion_matrix(y_true, predictions)
+    tn, fp, fn, tp = conf_matrix.ravel()
+    print("Confusion matrix: ")
+    print(conf_matrix)
+
+    print(roc_auc_score(y_true, predictions))
+
+    print(f"True negative: {tn}, False positive: {fp}, False Negative: {fn}, True Positive: {tp}")
     #pd.DataFrame(estimator.predict(X), columns=["predicted_values"]).to_csv(filename, index=False)
 
 
 def parse_data(full_data):
     # choose only numerical, dates, boolean and label:
-    data = full_data[NUMERICAL_COLS + DATETIME_COLS + SHOULD_BE_BOOLEAN_COLS + BOOLEAN_COLS +
-                     CATEGORICAL_COLS + [LABEL_COL]]
+    data = full_data.loc[:, NUMERICAL_COLS + DATETIME_COLS + SHOULD_BE_BOOLEAN_COLS + BOOLEAN_COLS +
+                            CATEGORICAL_COLS + ["cancellation_policy_code"] + [LABEL_COL]]
     print("Choosing features", data.shape)
 
     # handle labels
-    data[LABEL_COL] = data[LABEL_COL].notnull()
+    data.loc[:, LABEL_COL] = data.loc[:, LABEL_COL].notnull()
 
-    data = data.dropna()  # maybe use inplace=True to avoid copies
+    # data = data.dropna()  # maybe use inplace=True to avoid copies
+
+    data = data.drop(data[data["cancellation_policy_code"] == "UNKNOWN"].index)
+
+
+    # fill in 0 instead of None's
+    for col_name in SHOULD_BE_BOOLEAN_COLS:
+        data.loc[:, col_name] = data.loc[:, col_name].fillna(0)
 
     # handle boolean cols
     for col_name in SHOULD_BE_BOOLEAN_COLS:
-        data[col_name] = data[col_name] == 1
+        data.loc[:, col_name] = data.loc[:, col_name] == 1
 
     # handle datetime cols (convert to timestamps)
     for col_name in DATETIME_COLS:
-        data[col_name] = pd.to_datetime(data[col_name]).apply(lambda x: x.value)
+        as_datetime = pd.to_datetime(data[col_name])
+        data.loc[:, col_name + "_year"] = as_datetime.dt.year
+        data.loc[:, col_name + "_month"] = as_datetime.dt.month
+        data.loc[:, col_name + "_day"] = as_datetime.dt.day
+        data.loc[:, col_name + "_day_in_week"] = as_datetime.dt.day_of_week
+
+    data.loc[:, "n_nights"] = (pd.to_datetime(full_data["checkout_date"]) -
+                               pd.to_datetime(full_data["checkin_date"])).dt.days
+    data.loc[:, "n_days_from_booking_to_checkin"] = (pd.to_datetime(full_data["checkin_date"]) -
+                                                     pd.to_datetime(full_data["booking_datetime"])).dt.days
+
+    data = data.drop(DATETIME_COLS, axis=1)
 
     # replace categorical features with their dummies
     data = pd.get_dummies(data, columns=CATEGORICAL_COLS, drop_first=True)
+
+    data = parse_cancellation_policy_no_show(data)
+    data = parse_cancellation_policy(data)
+
+    print(data[["cancellation_policy_code", "n_nights", "no_show_percentage", "charge_percentage",
+                'charge_days', "charge_days_times_percentage"]].head(40))
+
+    data = data.drop(['cancellation_policy_code'], axis=1)
 
     print("After preprocessing:")
     print(data.shape)
@@ -116,14 +206,13 @@ if __name__ == '__main__':
     train_X, test_X, train_y, test_y = model_selection.train_test_split(df, cancellation_labels,
                                                                         test_size=0.25, random_state=0)
 
-    # train_X, train_y = df, cancellation_labels  # todo use the split later?
-    print(train_X.shape, train_y.shape)
+    print("Train shape", train_X.shape, train_y.shape)
 
     # # # Fit model over data
     estimator = AgodaCancellationEstimator()
     estimator.fit(train_X, train_y)
     #
     # # Store model predictions over test set
-    evaluate_and_export(estimator, test_X, "id1_id2_id3.csv")
+    evaluate_and_export(estimator, test_X, test_y, "id1_id2_id3.csv") # todo edit
 
     print("DONE")
