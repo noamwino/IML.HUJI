@@ -52,6 +52,8 @@ class AgodaCancellationEstimator(BaseEstimator):
 
         print(self.coef_)
         print(self.intercept_)
+        print("argmax", self.coef_.argmax())
+        print(X[0, self.coef_.argmax()])
 
         self.fitted_ = True
 
