@@ -39,37 +39,6 @@ LABEL_COL = 'cancellation_datetime'
 NO_SHOW_PATTERN = '_(\d+)(N|P)'
 POLICY_PATTERN = '(\d+)D(\d+)(N|P)'
 
-#
-# def parse_cancellation_policy_no_show(data):
-#     print("parse_cancellation_policy_no_show")
-#     for i, row in data.iterrows():
-#         policy = row["cancellation_policy_code"]
-#         n_nights = row["n_nights"]
-#
-#         no_show = re.findall(NO_SHOW_PATTERN, policy)
-#         if no_show:
-#             if no_show[0][1] == "N":
-#                 days = int(no_show[0][0])
-#                 percent = int(no_show[0][0]) / n_nights * 100
-#             else:
-#                 days = int(no_show[0][0]) * n_nights / 100
-#                 percent = int(no_show[0][0])
-#
-#         else:
-#             worse_policy_without_no_show = re.findall(POLICY_PATTERN, policy)[-1]
-#
-#             if worse_policy_without_no_show[-1] == "N":
-#                 days = int(worse_policy_without_no_show[1])
-#                 percent = int(worse_policy_without_no_show[1]) / n_nights * 100
-#             else:
-#                 days = int(worse_policy_without_no_show[1]) * n_nights / 100
-#                 percent = int(worse_policy_without_no_show[1])
-#
-#         data.loc[i, "no_show_days"] = days
-#         data.loc[i, "no_show_percentage"] = percent
-#     print("Done...")
-#     return data
-#
 
 def parse_all_cancellation_policy(data):
     print("here")
@@ -132,45 +101,6 @@ def parse_all_cancellation_policy(data):
     print("Done...")
     return data
 
-#
-# def parse_cancellation_policy(data):
-#     print("parse_cancellation_policy")
-#     for i, row in data.iterrows():
-#         policy = row["cancellation_policy_code"]
-#         n_nights = row["n_nights"]
-#
-#         cancel_policy = re.findall(POLICY_PATTERN, policy)
-#         worse_policy = cancel_policy[-1]
-#         basic_policy = cancel_policy[-2] if len(cancel_policy) > 1 else worse_policy
-#
-#         if worse_policy[2] == "N":
-#             nights = int(worse_policy[1])
-#             percent = int(worse_policy[1]) / n_nights * 100
-#         else:
-#             nights = int(worse_policy[1]) * n_nights / 100
-#             percent = int(worse_policy[1])
-#         if basic_policy[2] == "N":
-#             basic_by_nights = int(basic_policy[1])
-#             basic_percent = int(basic_policy[1]) / n_nights * 100
-#         else:
-#             basic_by_nights = int(basic_policy[1]) * n_nights / 100
-#             basic_percent = int(basic_policy[1])
-#
-#         days = int(worse_policy[0])
-#         basic_days = int(basic_policy[0])
-#         data.loc[i, "basic_charge_percentage"] = basic_percent
-#         data.loc[i, "basic_charge_by_nights"] = basic_by_nights
-#         data.loc[i, "basic_charge_days"] = basic_days
-#         #data.loc[i, "basic_charge_days_times_nights"] = basic_days * basic_by_nights
-#         #data.loc[i, "basic_charge_days_times_percentage"] = basic_days * basic_percent
-#         data.loc[i, "charge_percentage"] = percent
-#         data.loc[i, "charge_by_nights"] = nights
-#         data.loc[i, "charge_days"] = days
-#         #data.loc[i, "charge_days_times_nights"] = days * nights
-#         #data.loc[i, "charge_days_times_percentage"] = days * percent
-#     print("Done...")
-#     return data
-#
 
 def load_data(filename: str):
     """
@@ -194,7 +124,6 @@ def load_data(filename: str):
     print("Finished load data. Features:", features.shape, "labels:", labels.shape)
     return features, labels
 
-# todo uncomment and use!
 def evaluate_and_export(estimator: AgodaCancellationEstimator, X: np.ndarray, y_true, filename: str):
     """
     Export to specified file the prediction results of given estimator on given testset.
@@ -225,20 +154,6 @@ def evaluate_and_export(estimator: AgodaCancellationEstimator, X: np.ndarray, y_
 
     print(f"True negative: {tn}, False positive: {fp}, False Negative: {fn}, True Positive: {tp}")
     #pd.DataFrame(estimator.predict(X), columns=["predicted_values"]).to_csv(filename, index=False)
-
-# todo delete
-def parse_gilad(full_data):
-    data = full_data.loc[:, ['charge_option', 'no_of_room', 'request_largebed', 'request_twinbeds',
-                             LABEL_COL]]
-
-    data = data.dropna().drop_duplicates()
-    labels = data["cancellation_datetime"].between("2018-07-12", "2018-13-12").astype('int')
-
-    data = pd.get_dummies(data, columns=['charge_option'], drop_first=True)
-
-    features = data.drop(LABEL_COL, axis=1)
-
-    return features, labels
 
 
 def parse_data(full_data):
@@ -300,7 +215,7 @@ if __name__ == '__main__':
     df, cancellation_labels = load_data("../datasets/agoda_cancellation_train.csv")
 
     train_X, test_X, train_y, test_y = model_selection.train_test_split(df, cancellation_labels,
-                                                                        test_size=0.25, random_state=0)
+                                                                        random_state=0)
 
     print("Train shape", train_X.shape, train_y.shape)
 
@@ -316,6 +231,4 @@ if __name__ == '__main__':
     #test_X = parse_features(pd.read_csv("../datasets/test_set_week_1.csv"))
     #evaluate_and_export(estimator, test_X, "313234940_207906306_id3.csv")  # todo edit
 
-   # import os
-    #print("Written_to", os.path.abspath("313234940_207906306_id3.csv"))
     print("DONE")

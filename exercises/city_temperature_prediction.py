@@ -11,6 +11,9 @@ import plotly.io as pio
 pio.templates.default = "simple_white"
 
 
+from  IMLearn.metrics.loss_functions import mean_square_error
+
+
 CITY_TEMPERATURE_DATA_PATH = os.path.join(os.path.curdir, "..", "datasets", "City_Temperature.csv")
 
 
@@ -34,6 +37,7 @@ def load_data(filename: str) -> pd.DataFrame:
 
 
 def question_2(data):
+    """ Exploring data specifically in Israel """
     data = data.copy()
     data = data[data["Country"] == "Israel"]
     data["Year"] = data["Year"].astype(str)
@@ -55,6 +59,7 @@ def question_2(data):
 
 
 def question_3(data):
+    """ Exploring differences between countries"""
     agg_data_mean = data.groupby(["Country", "Month"]).mean().reset_index()
     agg_data_std = data.groupby(["Country", "Month"]).std().reset_index()
 
@@ -66,6 +71,7 @@ def question_3(data):
 
 
 def question_4(data):
+    """ Fitting model for different values of `k` """
     data = data[data["Country"] == "Israel"]
     train_X, train_y, test_X, test_y = split_train_test(data["DayOfYear"], data["Temp"])
 
@@ -87,11 +93,10 @@ def question_4(data):
 
 
 def question_5(data):
+    """ Evaluating fitted model on different countries """
     data_israel = data[data["Country"] == "Israel"]
 
     poly_fit = PolynomialFitting(k=5)
-
-    # which data to send to the fit?
     poly_fit.fit(data_israel["DayOfYear"], data_israel["Temp"])
 
     other_countries = ["Jordan", "South Africa", "The Netherlands"]
@@ -100,7 +105,6 @@ def question_5(data):
     for country in other_countries:
         country_data = data[data["Country"] == country]
         loss = poly_fit.loss(country_data["DayOfYear"], country_data["Temp"])
-        print(country, loss)
         losses = np.append(losses, loss)
 
     fig = px.bar(x=np.array(other_countries), y=losses, width=700, height=700,
@@ -124,4 +128,6 @@ if __name__ == '__main__':
     # Question 4 - Fitting model for different values of `k`
     question_4(data)
 
+    # Question 5 - Evaluating fitted model on different countries
     question_5(data)
+

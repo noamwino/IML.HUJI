@@ -1,17 +1,17 @@
 from IMLearn.utils import split_train_test
 from IMLearn.learners.regressors import LinearRegression
 
-import os
 from typing import NoReturn
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 import plotly.io as pio
+import os
 pio.templates.default = "simple_white"
 
 
-HOUSE_PRICES_DATA = "../datasets/house_prices.csv"
+HOUSE_PRICES_DATA = os.path.join("..", "datasets", "house_prices.csv")
 
 
 def load_data(filename: str):
@@ -75,11 +75,9 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") ->
     output_path: str (default ".")
         Path to folder in which plots are saved
     """
-    mins = []
     for feature_name in X.columns:
         feature = X[feature_name]
         pearson_corr = np.cov(feature, y)[0][1] / (np.std(feature) * np.std(y))
-        mins.append(abs(pearson_corr))
 
         ordered_df = pd.concat((feature, y), axis=1).sort_values([feature_name, 'price'])
 
@@ -92,23 +90,17 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") ->
                                 f"{pearson_corr}")
 
         fig.write_image(os.path.join(output_path, feature_name + ".png"))
-        print(feature_name, pearson_corr)  # todo delete
-
-    print(min(mins), max(mins))
 
 
 if __name__ == '__main__':
     np.random.seed(0)
     # Question 1 - Load and preprocessing of housing prices dataset
-    print("Q1")
     features, labels = load_data(HOUSE_PRICES_DATA)
 
     # Question 2 - Feature evaluation with respect to response
-    print("Q2")
-    # feature_evaluation(features, labels, output_path="Q2Graphs")  # todo uncomment1
+    feature_evaluation(features, labels, output_path="Q2Graphs")
 
     # Question 3 - Split samples into training- and testing sets.
-    print("Q3")
     train_X, train_y, test_X, test_y = split_train_test(features, labels)
 
     # Question 4 - Fit model over increasing percentages of the overall training data
@@ -118,7 +110,6 @@ if __name__ == '__main__':
     #   3) Test fitted model over test set
     #   4) Store average and variance of loss over test set
 
-    print("Q4")
     df = pd.DataFrame({}, columns=["p", "mean_loss", "std_loss"])
     for p in range(10, 101):
         losses = np.array([])
@@ -135,7 +126,6 @@ if __name__ == '__main__':
         std_loss = losses.std()
 
         df = df.append({"p": p, "mean_loss": mean_loss, "std_loss": std_loss}, ignore_index=True)
-        print({"p": p, "mean_loss": mean_loss, "std_loss": std_loss})  # todo delete
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df["p"], y=df["mean_loss"], mode="markers+lines", name="Mean Loss"))
