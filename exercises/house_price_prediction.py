@@ -75,6 +75,9 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") ->
     output_path: str (default ".")
         Path to folder in which plots are saved
     """
+    if not os.path.isdir(output_path):
+        os.mkdir(output_path)
+
     for feature_name in X.columns:
         feature = X[feature_name]
         pearson_corr = np.cov(feature, y)[0][1] / (np.std(feature) * np.std(y))
