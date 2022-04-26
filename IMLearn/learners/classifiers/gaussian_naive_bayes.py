@@ -40,13 +40,17 @@ class GaussianNaiveBayes(BaseEstimator):
         y : ndarray of shape (n_samples, )
             Responses of input data to fit to
         """
+        # --- PREPARATIONS --- #
+        # Creating a list in which each item is an array of samples from X sharing the same label
+        Xy = np.c_[X, y.T]
+        Xy = Xy[Xy[:, -1].argsort()]
+        groups = np.split(Xy, np.unique(Xy[:, -1], return_index=True)[1][1:])
+
+        # --- CALCULATIONS --- #
         self.classes_ = np.unique(y)  # same as LDA
         self.pi_ = np.unique(y, return_counts=True)[1] / len(y)  # same as LDA
-        self.mu_ = np.array([X[(y == class_name)].mean(axis=0) for class_name in self.classes_])  # same as LDA
-        # todo remove loop if possible ^
-
-        self.vars_ = np.array([np.var(X[y == k], axis=0) for k in self.classes_])
-        # todo remove loop if possible ^
+        self.mu_ = np.array(list(map(lambda group: group[:, 0:-1].mean(axis=0), groups)))  # same as LDA
+        self.vars_ = np.array(list(map(lambda group: group[:, 0:-1].var(axis=0, ddof=1), groups)))
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -82,16 +86,16 @@ class GaussianNaiveBayes(BaseEstimator):
         if not self.fitted_:
             raise ValueError("Estimator must first be fitted before calling `likelihood` function")
 
-        likelihood = np.zeros((len(X), len(self.classes_)))
-        n_samples, n_features = X.shape
+        m, d = X.shape
 
-        for k in self.classes_:
+        def likelihood_per_class(k):
+            """ Returns an (n_samples,) array representing the likelihood of X to get the label k """
             mu, pi, sigma = self.mu_[k], self.pi_[k], np.diag(self.vars_[k])
             det_sigma, inv_sigma = np.linalg.det(sigma), np.linalg.inv(sigma)
-            mahalanobis = np.einsum("bi,ij,bj->b", X-mu, inv_sigma, X-mu)
-            likelihood[:, k] = np.exp(-.5 * mahalanobis) / np.sqrt((2*np.pi) ** n_features * det_sigma) * pi
+            return (np.exp(-.5 * np.einsum("bi,ij,bj->b", X-mu, inv_sigma, X-mu)) /
+                    np.sqrt((2*np.pi) ** d * det_sigma) * pi)[:, np.newaxis]
 
-        return likelihood
+        return np.concatenate(list(map(likelihood_per_class, self.classes_)), axis=1)
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """

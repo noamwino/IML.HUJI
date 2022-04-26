@@ -46,20 +46,22 @@ class LDA(BaseEstimator):
         y : ndarray of shape (n_samples, )
             Responses of input data to fit to
         """
+        # --- PREPARATIONS --- #
+        # Creating a list in which each item is an array of samples from X sharing the same label
+        Xy = np.c_[X, y.T]
+        Xy = Xy[Xy[:, -1].argsort()]
+        groups = np.split(Xy, np.unique(Xy[:, -1], return_index=True)[1][1:])
+
+        def cov_per_group(group):
+            X, y = group[:, 0:-1], group[:, -1][0]  # all y's have the same label, enough to take the first
+            class_index_in_mu = np.where(self.classes_ == y)[0][0]
+            return (X - self.mu_[class_index_in_mu]).T @ (X - self.mu_[class_index_in_mu])
+
+        # --- CALCULATIONS --- #
         self.classes_ = np.unique(y)
         self.pi_ = np.unique(y, return_counts=True)[1] / len(y)
-        self.mu_ = np.array([X[(y == class_name)].mean(axis=0) for class_name in self.classes_])
-        # todo remove loop if possible ^
-
-        n_samples, n_features = X.shape
-        n_classes = len(self.classes_)
-        self.cov_ = np.zeros((n_features, n_features))
-
-        for k in self.classes_:
-            self.cov_ += (X[y == k] - self.mu_[k]).T @ (X[y == k] - self.mu_[k])
-        self.cov_ /= (n_samples - n_classes)
-        # todo remove loop if possible ^
-
+        self.mu_ = np.array(list(map(lambda group: group[:, 0:-1].mean(axis=0), groups)))
+        self.cov_ = np.array(list(map(cov_per_group, groups))).sum(axis=0) / (len(X) - len(self.classes_))
         self._cov_inv = inv(self.cov_)
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
@@ -96,14 +98,12 @@ class LDA(BaseEstimator):
         if not self.fitted_:
             raise ValueError("Estimator must first be fitted before calling `likelihood` function")
 
-        likelihood = np.zeros((len(X), len(self.classes_)))
-        n_samples, n_features = X.shape
+        def likelihood_per_class(k):
+            """ Returns an (n_samples,) array representing the likelihood of X to get the label k """
+            return (np.exp(-.5 * np.einsum("bi,ij,bj->b", X-self.mu_[k], self._cov_inv, X-self.mu_[k])) /
+                    np.sqrt((2*np.pi) ** X.shape[1] * det(self.cov_)) * self.pi_[k])[:, np.newaxis]
 
-        for k in self.classes_:
-            mu, pi, det_cov = self.mu_[k], self.pi_[k], det(self.cov_)
-            mahalanobis = np.einsum("bi,ij,bj->b", X-mu, self._cov_inv, X-mu)
-            likelihood[:, k] = np.exp(-.5 * mahalanobis) / np.sqrt((2*np.pi) ** n_features * det_cov) * pi
-        return likelihood
+        return np.concatenate(list(map(likelihood_per_class, self.classes_)), axis=1)
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
