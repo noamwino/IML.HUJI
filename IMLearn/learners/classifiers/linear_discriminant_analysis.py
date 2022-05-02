@@ -100,6 +100,7 @@ class LDA(BaseEstimator):
 
         def likelihood_per_class(k):
             """ Returns an (n_samples,) array representing the likelihood of X to get the label k """
+
             return (np.exp(-.5 * np.einsum("bi,ij,bj->b", X-self.mu_[k], self._cov_inv, X-self.mu_[k])) /
                     np.sqrt((2*np.pi) ** X.shape[1] * det(self.cov_)) * self.pi_[k])[:, np.newaxis]
 
