@@ -40,26 +40,21 @@ class DecisionStump(BaseEstimator):
         y : ndarray of shape (n_samples, )
             Responses of input data to fit to
         """
-        n_samples, n_features = X.shape
-        self.sign_ = 1  # todo check sign (+1 or -1?)
+        n_features = X.shape[1]
+        # each row in this data set represents a pair of feature index and sign.
+        # The columns are: feature index, error, threshold, sign
+        errors_thresholds_signs = np.zeros((n_features * 2, 4))
+        index_in_arr = 0
 
-        # first feature
-        threshold_plus1, error_plus1 = self._find_threshold(X[:, 0], y, 1)
-        threshold_minus1, error_minus1 = self._find_threshold(X[:, 0], y, -1)
-
-        min_error = min(error_plus1, error_minus1)
-        self.j_ = 0
-        self.sign_ = 1 if error_plus1 < error_minus1 else -1
-        self.threshold_ = threshold_plus1 if error_plus1 < error_minus1 else threshold_minus1
-
-        for feature_index in range(1, n_features):
+        for feature_index in range(n_features):
             for sign in [-1, 1]:
-                threshold, error = self._find_threshold(X[:, feature_index], y, sign)  # todo check sign (+1 or -1?)
-                print(f"Feature {feature_index}, got the error {error} with threshold {threshold} and sign {sign}")
-                if error < min_error:
-                    print(f"Updating")
-                    min_error = error
-                    self.j_, self.threshold_, self.sign_ = feature_index, threshold, sign
+                threshold, error = self._find_threshold(X[:, feature_index], y, sign)
+                errors_thresholds_signs[index_in_arr] = np.array([feature_index, error, threshold, sign])
+                index_in_arr += 1
+
+        min_error_index = int(np.argmin(errors_thresholds_signs[:, 1]))
+        params = errors_thresholds_signs[min_error_index]
+        self.j_, self.threshold_, self.sign_ = int(params[0]), params[2], int(params[3])
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -115,18 +110,14 @@ class DecisionStump(BaseEstimator):
         For every tested threshold, values strictly below threshold are predicted as `-sign` whereas values
         which equal to or above the threshold are predicted as `sign`
         """
-        optimal_threshold, optimal_error = None, None
+        signed_labels, weights = np.sign(labels), np.abs(labels)
 
-        for optional_threshold in values:
-            print("Checking value", optional_threshold)
-            prediction = np.where(values < optional_threshold, -1 * sign, sign)
-            error = misclassification_error(labels, prediction)
+        def get_error(threshold):
+            return np.dot((signed_labels != np.where(values < threshold, -1 * sign, sign)), weights)
 
-            if not optimal_error or error < optimal_error:
-                optimal_threshold = optional_threshold
-                optimal_error = error
-
-        return optimal_threshold, optimal_error
+        errors = np.array(list(map(get_error, values)))
+        optimal_error_index = np.argmin(errors)
+        return values[optimal_error_index], errors[optimal_error_index]
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
@@ -145,4 +136,4 @@ class DecisionStump(BaseEstimator):
         loss : float
             Performance under missclassification loss function
         """
-        return misclassification_error(self.predict(X), y)
+        return misclassification_error(self.predict(X), np.sign(y))
