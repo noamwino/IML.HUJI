@@ -42,17 +42,16 @@ def generate_data(n: int, noise_ratio: float) -> Tuple[np.ndarray, np.ndarray]:
 def question_1(train_X, train_y, test_X, test_y, n_learners, noise):
     adaboost = AdaBoost(wl=lambda: DecisionStump(), iterations=n_learners).fit(train_X, train_y)
 
-    train_errors, test_errors = np.zeros(n_learners), np.zeros(n_learners)
+    train_errors, test_errors = np.zeros(n_learners + 1), np.zeros(n_learners + 1)
     train_errors[0], test_errors[0] = np.inf, np.inf  # so 0 learners will not count as a good model
 
-    for t in range(1, n_learners):
+    for t in range(1, n_learners + 1):
         train_errors[t] = adaboost.partial_loss(train_X, train_y, t)
         test_errors[t] = adaboost.partial_loss(test_X, test_y, t)
 
-    fig = go.Figure(
-        [
-            go.Scatter(x=np.arange(1, n_learners + 1), y=train_errors[1:], name="train errors"),
-            go.Scatter(x=np.arange(1, n_learners + 1), y=test_errors[1:], name="test errors")
+    fig = go.Figure([
+            go.Scatter(x=np.arange(1, n_learners + 2), y=train_errors[1:], name="train errors"),
+            go.Scatter(x=np.arange(1, n_learners + 2), y=test_errors[1:], name="test errors")
         ],
         layout=go.Layout(title=f"Q1 - Train and test errors as a function of the number of learners in the "
                                f"ensemble (noise={noise})".title(),
@@ -70,8 +69,7 @@ def question_2(adaboost, test_X, test_y, lims, noise):
                         horizontal_spacing=0.03, vertical_spacing=.03)
 
     for i, weak_models_count in enumerate(T):
-        fig.add_traces(
-            [
+        fig.add_traces([
                 decision_surface(lambda X: adaboost.partial_predict(X, weak_models_count), lims[0], lims[1],
                                  showscale=False),
                 go.Scatter(x=test_X[:, 0], y=test_X[:, 1], mode="markers", showlegend=False,
@@ -88,8 +86,7 @@ def question_2(adaboost, test_X, test_y, lims, noise):
 
 def question_3(adaboost, test_X, test_y, test_errors, lims, noise):
     optimal_learners_count = int(np.argmin(test_errors))
-    fig = go.Figure(
-        [
+    fig = go.Figure([
             decision_surface(lambda X: adaboost.partial_predict(X, optimal_learners_count), lims[0], lims[1],
                              showscale=False),
             go.Scatter(x=test_X[:, 0], y=test_X[:, 1], mode="markers", showlegend=False,
@@ -105,8 +102,7 @@ def question_3(adaboost, test_X, test_y, test_errors, lims, noise):
 
 def question_4(adaboost, train_X, train_y, lims, noise):
     D = adaboost.D_ / np.max(adaboost.D_) * (20 if noise == 0 else 10)
-    fig = go.Figure(
-        [
+    fig = go.Figure([
             decision_surface(lambda X: adaboost.partial_predict(X, adaboost.iterations_), lims[0], lims[1],
                              showscale=False),
             go.Scatter(x=train_X[:, 0], y=train_X[:, 1], mode='markers', showlegend=False,

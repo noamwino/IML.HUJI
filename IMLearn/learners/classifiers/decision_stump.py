@@ -47,10 +47,13 @@ class DecisionStump(BaseEstimator):
         index_in_arr = 0
 
         for feature_index in range(n_features):
-            for sign in [-1, 1]:
-                threshold, error = self._find_threshold(X[:, feature_index], y, sign)
-                errors_thresholds_signs[index_in_arr] = np.array([feature_index, error, threshold, sign])
-                index_in_arr += 1
+            threshold, error = self._find_threshold(X[:, feature_index], y, -1)
+            errors_thresholds_signs[index_in_arr] = np.array([feature_index, error, threshold, -1])
+            index_in_arr += 1
+
+            threshold, error = self._find_threshold(X[:, feature_index], y, 1)
+            errors_thresholds_signs[index_in_arr] = np.array([feature_index, error, threshold, 1])
+            index_in_arr += 1
 
         min_error_index = int(np.argmin(errors_thresholds_signs[:, 1]))
         params = errors_thresholds_signs[min_error_index]
